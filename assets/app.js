@@ -324,11 +324,17 @@ function viewMonitor(){
 }
 
 function viewDetect(){
-  const cv = $('#sat'); cv.width = cv.height = 560;
+  const cv = $('#sat'); cv.width = cv.height = 320;
   let spin = 0;
   drawSatellite(cv, 0);
   clearInterval(window.__sat);
-  window.__sat = setInterval(()=>{ spin += 0.06; drawSatellite(cv, spin); }, 90);
+  /* 320² buffer upscaled by CSS, stepped at ~4 fps and paused when the tab is
+     hidden — the scene is decorative, so it should never compete for the main
+     thread with the rest of the dashboard. */
+  window.__sat = setInterval(()=>{
+    if (document.hidden || !$('#v-detect').classList.contains('on')) return;
+    spin += 0.14; drawSatellite(cv, spin);
+  }, 250);
 
   $('#det-feat').innerHTML = FEATURES.map(f=>`
     <div class="kv"><span class="k">${f.k}<div class="dim" style="font-size:11.5px">${f.note}</div></span>
@@ -409,6 +415,7 @@ async function runPipeline(){
   const btn = $('#run'); btn.disabled = true; btn.textContent = 'Running…';
   const steps = $$('#pipe-list .step'), log = $('#pipe-log'), bar = $('#pipe-bar > i');
   steps.forEach(s=>{ s.className='step'; s.querySelector('.st').textContent='queued'; });
+  bar.style.width = '0%';
   log.textContent='';
   const say = t => { log.textContent += t + '\n'; log.scrollTop = log.scrollHeight; };
   say('$ cycloneai run --sources insat3d,himawari,modis,era5 --mode prototype');

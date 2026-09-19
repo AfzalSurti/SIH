@@ -2,7 +2,7 @@
 :root{
   --bg:#070b14; --bg2:#0b1220; --panel:#0f172a; --panel2:#131f38;
   --line:#1e2b47; --line2:#2a3a5c;
-  --dim:#5f74a0;
+  --txt:#e6edf8; --mut:#8ea3c4; --dim:#5f74a0;
   --acc:#38bdf8; --acc2:#818cf8; --ok:#34d399; --warn:#fbbf24; --bad:#f43f5e;
   --red:#ef4444; --orange:#f97316; --yellow:#eab308;
   --mono:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
