@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CycloneAI — Cyclone Monitoring</title>
+<meta name="description" content="SIH26070 prototype: AI-based tropical cyclone detection, classification and short-term prediction dashboard.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🌀</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 10.5c4 0 7-3 7-7-4.2 0-7 2.6-7 7z"/>
+      <path d="M12 13.5c-4 0-7 3-7 7 4.2 0 7-2.6 7-7z"/><circle cx="12" cy="12" r="2"/></svg>
+    </div>
+    <div>
+      <b>CycloneAI</b>
+      <span>SIH26070 · Team TechNova</span>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab on" data-v="monitor">Live Monitor</button>
+    <button class="tab" data-v="detect">Detection</button>
+    <button class="tab" data-v="classify">Classification</button>
+    <button class="tab" data-v="predict">Prediction</button>
+    <button class="tab" data-v="pipeline">Data Pipeline</button>
+    <button class="tab" data-v="validate">Model Validation</button>
+    <button class="tab" data-v="about">About</button>
+  </nav>
+  <div class="topmeta"><span><span class="dot"></span>pipeline online</span><span class="mono" id="clock">—</span></div>
+</header>
+
+<main>
+
+<!-- ============================ LIVE MONITOR ============================ -->
+<section class="view on" id="v-monitor">
+  <div class="banner" id="mon-banner"></div>
+  <div class="grid g4" id="mon-stats" style="margin-bottom:14px"></div>
+
+  <div class="split">
+    <div class="card pad0">
+      <div class="mapwrap">
+        <div id="mon-map"></div>
+        <div class="mapinfo" id="mon-mapinfo"></div>
+        <div class="maplegend">
+          <div><i style="background:#f43f5e"></i>observed track (past 72 h)</div>
+          <div><i style="background:#38bdf8"></i>AI forecast track (+36 h)</div>
+          <div><i style="background:#38bdf866"></i>uncertainty cone</div>
+          <div><i style="background:#fbbf24"></i>estimated landfall point</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="align-content:start">
+      <div class="card">
+        <h3>Intensity — observed vs predicted</h3>
+        <div id="mon-chart"></div>
+      </div>
+      <div class="card">
+        <h3>Systems in watchlist <span class="r">3 tracked</span></h3>
+        <div id="mon-watch"></div>
+      </div>
+      <div class="card">
+        <h3>District alerts <span class="r">top 5 of 7</span></h3>
+        <table><thead><tr><th>District</th><th>Level</th><th>Wind</th><th>ETA</th></tr></thead>
+          <tbody id="mon-alerts"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== DETECTION ============================= -->
+<section class="view" id="v-detect">
+  <div class="sect-title"><h2>Detection</h2>
+    <p>Fused satellite scene → CNN locates the system and fixes its centre.</p></div>
+  <div class="split3">
+    <div class="card">
+      <h3>Fused input scene <span class="r">6 channels</span></h3>
+      <div class="satwrap">
+        <canvas id="sat"></canvas>
+        <div class="satlabel">INSAT-3D IR1 + HIMAWARI-9 · enhanced IR</div>
+        <div class="scan"></div>
+      </div>
+      <div class="note">Enhanced-infrared rendering of the fused tensor. The dashed box is the
+        detector's bounding box; the cyan cross is the estimated storm centre.</div>
+    </div>
+    <div class="card">
+      <h3>Detector output</h3>
+      <div class="grid g2" style="margin-bottom:12px">
+        <div class="stat"><div class="k">Systems found</div><div class="v">1</div><div class="s">in scene</div></div>
+        <div class="stat"><div class="k">Confidence</div><div class="v" style="color:#4ade80">0.97</div><div class="s">objectness score</div></div>
+        <div class="stat"><div class="k">Centre fix</div><div class="v" style="font-size:19px">16.1°N 85.9°E</div><div class="s">±41 km vs best-track</div></div>
+        <div class="stat"><div class="k">Backbone</div><div class="v" style="font-size:19px">ResNet-18</div><div class="s">pretrained, fine-tuned</div></div>
+      </div>
+      <h3 style="margin-top:6px">Extracted features</h3>
+      <div id="det-feat"></div>
+    </div>
+    <div class="card">
+      <h3>Multi-source ingest</h3>
+      <div id="det-sources"></div>
+      <div class="note">Prototype reads from a local historical cache rather than a live downlink,
+        exactly as described in the feasibility slide. Adding a live feed only changes this layer.</div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== CLASSIFICATION =========================== -->
+<section class="view" id="v-classify">
+  <div class="sect-title"><h2>Classification</h2>
+    <p>Intensity estimated on the 7-class IMD scale, with a Dvorak-style T-number for cross-check.</p></div>
+  <div class="split3">
+    <div class="card">
+      <h3>Estimated intensity</h3>
+      <div id="cls-gauge"></div>
+      <div id="cls-head" style="text-align:center;margin-top:-6px"></div>
+      <h3 style="margin-top:20px">Intensity history</h3>
+      <div id="cls-spark"></div>
+    </div>
+    <div class="card">
+      <h3>Class probabilities <span class="r">softmax</span></h3>
+      <div id="cls-probs" style="margin-top:14px"></div>
+      <div class="note">The head is deliberately conservative: adjacent classes keep non-trivial
+        probability, so a forecaster sees how close the call is rather than a single hard label.</div>
+    </div>
+    <div class="card">
+      <h3>IMD intensity scale</h3>
+      <table><thead><tr><th>Code</th><th>Category</th><th>Wind</th><th></th></tr></thead>
+        <tbody id="cls-scale"></tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= PREDICTION ============================= -->
+<section class="view" id="v-predict">
+  <div class="sect-title"><h2>Short-term prediction</h2>
+    <p>Track and intensity from +6 h to +36 h, with growing uncertainty.</p></div>
+  <div class="split">
+    <div class="card pad0"><div class="mapwrap"><div id="pred-map"></div>
+      <div class="maplegend">
+        <div><i style="background:#f43f5e"></i>observed</div>
+        <div><i style="background:#38bdf8"></i>forecast</div>
+        <div><i style="background:#38bdf866"></i>cone of uncertainty</div>
+      </div></div></div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><h3>Central pressure</h3><div id="pred-pres"></div></div>
+      <div class="card"><h3>Positional uncertainty</h3><div id="pred-err"></div></div>
+      <div class="card"><h3>Landfall estimate</h3><div id="pred-landfall"></div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Forecast table <span class="r">GRU track + intensity model</span></h3>
+    <table><thead><tr><th>Lead time</th><th>Position</th><th>Max wind</th><th>Pressure</th>
+      <th>Class</th><th>Uncertainty</th></tr></thead><tbody id="pred-table"></tbody></table>
+  </div>
+</section>
+
+<!-- ============================== PIPELINE ============================== -->
+<section class="view" id="v-pipeline">
+  <div class="sect-title"><h2>Data pipeline</h2>
+    <p>The full workflow from the architecture slide, runnable end to end.</p></div>
+  <div class="split">
+    <div class="card">
+      <h3>Stages <span class="r">9 steps</span></h3>
+      <div class="pipe" id="pipe-list"></div>
+      <div class="bar" id="pipe-bar"><i></i></div>
+      <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
+        <button class="btn" id="run">Run pipeline</button>
+        <span class="dim" style="font-size:12.5px">Simulated run over cached historical granules.</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Run log</h3>
+      <pre id="pipe-log" class="mono" style="background:#060d1a;border:1px solid var(--line);border-radius:10px;
+        padding:14px;height:430px;overflow:auto;font-size:12.3px;color:#9ec5e8;margin:0;white-space:pre-wrap"></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================= VALIDATION ============================= -->
+<section class="view" id="v-validate">
+  <div class="sect-title"><h2>Model validation</h2>
+    <p>Scored on historical storms the model never saw during training.</p></div>
+  <div class="grid g3" id="val-metrics" style="margin-bottom:14px"></div>
+  <div class="split">
+    <div class="card">
+      <h3>Hold-out cyclones <span class="r">10 events · 2019–2024</span></h3>
+      <table><thead><tr><th>Cyclone</th><th>Basin</th><th>Actual</th><th>Predicted</th>
+        <th>Result</th><th>Track err</th><th>Int. err</th></tr></thead><tbody id="val-table"></tbody></table>
+      <div class="note">No prediction is off by more than one intensity category. Errors cluster on
+        rapidly intensifying systems (Amphan, Biparjoy), which is where a bigger training set would help most.</div>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><h3>Track error vs persistence baseline</h3><div id="val-err"></div></div>
+      <div class="card"><h3>Confusion matrix</h3><div id="val-conf"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================ ABOUT =============================== -->
+<section class="view" id="v-about">
+  <div class="sect-title"><h2>About this prototype</h2>
+    <p>SIH26070 — AI-based tropical cyclone detection, classification &amp; short-term prediction.</p></div>
+  <div class="split">
+    <div class="card">
+      <h3>What this is</h3>
+      <p style="margin-top:0">A working front-end prototype of the system described in our problem
+      statement. It demonstrates the complete workflow — multi-source ingest → preprocessing →
+      time/location alignment → fusion → feature extraction → detection → classification →
+      short-term prediction → map, charts and alerts — as one interface.</p>
+      <p><b>It is a prototype, not an operational forecast system.</b> Model outputs shown here are
+      simulated from historical cyclone behaviour so the interface and workflow can be evaluated
+      before the trained models are wired in. No live satellite downlink is connected.</p>
+      <p>The goal, as in our deck, is not to replace meteorologists but to give them AI-assisted
+      monitoring and analysis in one place.</p>
+      <h3 style="margin-top:18px">Innovation</h3>
+      <div class="grid g2">
+        <div><b>Multi-source fusion</b><div class="mut" style="font-size:13px">More than one satellite
+          source combined on a common grid.</div></div>
+        <div><b>One complete workflow</b><div class="mut" style="font-size:13px">Detection →
+          classification → prediction, not three disconnected tools.</div></div>
+        <div><b>Unseen-event testing</b><div class="mut" style="font-size:13px">Scored on cyclones
+          held out of training.</div></div>
+        <div><b>Single dashboard</b><div class="mut" style="font-size:13px">Imagery, status, intensity
+          and movement together.</div></div>
+      </div>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="card">
+        <h3>Planned stack</h3>
+        <div class="mut" style="font-size:12.5px">Data processing</div>
+        <div class="tech"><span class="chip">Python</span><span class="chip">Pandas</span>
+          <span class="chip">NumPy</span><span class="chip">OpenCV</span></div>
+        <div class="mut" style="font-size:12.5px;margin-top:10px">AI / ML</div>
+        <div class="tech"><span class="chip">PyTorch</span><span class="chip">scikit-learn</span>
+          <span class="chip">Pretrained CNN</span></div>
+        <div class="mut" style="font-size:12.5px;margin-top:10px">Backend &amp; storage</div>
+        <div class="tech"><span class="chip">FastAPI</span><span class="chip">PostgreSQL</span></div>
+        <div class="mut" style="font-size:12.5px;margin-top:10px">Frontend &amp; maps</div>
+        <div class="tech"><span class="chip">React</span><span class="chip">Leaflet</span>
+          <span class="chip">Mapbox</span></div>
+        <div class="note">This prototype is dependency-free HTML/CSS/JS so it runs anywhere for the
+          demo; the production build follows the stack above.</div>
+      </div>
+      <div class="card">
+        <h3>Team TechNova</h3>
+        <div class="kv"><span class="k">Leader</span><span class="v">Dhruv Pathak</span></div>
+        <div class="kv"><span class="k">Members</span><span class="v" style="text-align:right">Riya Thakor · Damini Chaudhari<br>
+          Dhruvil Dattani · Parth Pathak<br>Afzal Surti</span></div>
+        <div class="kv"><span class="k">Problem ID</span><span class="v">SIH26070</span></div>
+      </div>
+      <div class="card">
+        <h3>Data sources (intended)</h3>
+        <div class="mut" style="font-size:13px">INSAT-3D/3DR · Himawari-9 · MODIS · SCATSAT-1 ·
+          ERA5 reanalysis · IBTrACS and IMD best-track archives.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <span>CycloneAI · prototype build · all model outputs are simulated for demonstration</span>
+  <span>SIH26070 · Team TechNova</span>
+</footer>
+</main>
+
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
